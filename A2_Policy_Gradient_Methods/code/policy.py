@@ -43,10 +43,6 @@ class BasePolicy:
         observations = np2torch(observations)
         #######################################################
         #########   YOUR CODE HERE - 1-4 lines.    ############
-        act_dist = self.action_distribution(observations)
-        sampled_actions = act_dist.sample()
-        log_probs = act_dist.log_prob(sampled_actions).detach().numpy()  # The reason why using detach() is that it can remove the gradient graph of tenosr and be tranfered to numpy easily
-        sampled_actions = sampled_actions.detach().numpy() 
         #######################################################
         #########          END YOUR CODE.          ############
         if return_log_prob:
@@ -71,8 +67,6 @@ class CategoricalPolicy(BasePolicy, nn.Module):
         """
         #######################################################
         #########   YOUR CODE HERE - 1-2 lines.    ############
-        logits = self.network(observations)
-        distribution = ptd.Categorical(logits=logits)
         #######################################################
         #########          END YOUR CODE.          ############
         return distribution
@@ -90,7 +84,6 @@ class GaussianPolicy(BasePolicy, nn.Module):
         self.network = network
         #######################################################
         #########   YOUR CODE HERE - 1 line.       ############
-        self.log_std = nn.Parameter(torch.zeros(action_dim))
         #######################################################
         #########          END YOUR CODE.          ############
 
@@ -104,10 +97,9 @@ class GaussianPolicy(BasePolicy, nn.Module):
         """
         #######################################################
         #########   YOUR CODE HERE - 1 line.       ############
-        std = torch.exp(self.log_std)
         #######################################################
         #########          END YOUR CODE.          ############
-        return std
+        return
 
     def action_distribution(self, observations):
         """
@@ -128,9 +120,6 @@ class GaussianPolicy(BasePolicy, nn.Module):
         """
         #######################################################
         #########   YOUR CODE HERE - 2-4 lines.    ############
-        loc = self.network(observations)
-        std = torch.square(self.std())
-        distribution = ptd.MultivariateNormal(loc=loc, covariance_matrix=torch.diag(std))
         #######################################################
         #########          END YOUR CODE.          ############
-        return distribution
+        return

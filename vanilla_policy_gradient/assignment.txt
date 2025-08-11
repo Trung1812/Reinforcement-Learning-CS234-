@@ -1,0 +1,122 @@
+Alright — here’s how I’d phrase a **Stanford-style assignment problem** for implementing a **Vanilla Policy Gradient (VPG)** algorithm on the **CartPole** environment.
+
+---
+
+## **CSxxx: Deep Reinforcement Learning — Assignment: Vanilla Policy Gradient on CartPole**
+
+### **Overview**
+
+In this assignment, you will implement the **Vanilla Policy Gradient (VPG)** algorithm to solve the **CartPole-v1** environment from OpenAI Gym. Your goal is to train a policy network that can balance the pole for as long as possible.
+
+---
+
+### **Background**
+
+The CartPole problem consists of a pole attached to a cart that moves along a frictionless track. The agent observes:
+
+* Cart position
+* Cart velocity
+* Pole angle
+* Pole angular velocity
+
+The agent can apply a **force** to the cart in either the **left** or **right** direction.
+The episode terminates when the pole falls beyond a certain angle or the cart moves out of bounds.
+
+---
+
+### **Your Task**
+
+You will:
+
+1. **Implement** a policy network (e.g., a simple MLP) that outputs action probabilities given the state.
+2. **Sample trajectories** by interacting with the environment using the current policy.
+3. **Compute returns** (sum of discounted rewards for each time step).
+4. **Update the policy parameters** via gradient ascent using the policy gradient objective:
+
+$$
+J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \log \pi_\theta(a_t \mid s_t) \cdot G_t \right]
+$$
+
+where $G_t$ is the discounted return starting from time $t$.
+
+---
+
+### **Implementation Requirements**
+
+1. **Environment**: `CartPole-v1` from `gymnasium` or `gym`.
+2. **Policy Network**:
+
+   * Input dimension: 4 (state space)
+   * Output dimension: 2 (actions: left or right)
+   * Activation: ReLU hidden layers, Softmax output.
+3. **Trajectory Sampling**:
+
+   * Collect episodes until you have at least **batch\_size** timesteps.
+4. **Return Computation**:
+
+   * Discounted return with discount factor $\gamma = 0.99$.
+5. **Policy Update**:
+
+   * Use **stochastic gradient ascent** on the policy gradient objective.
+   * Use **Adam optimizer** with learning rate = $1 \times 10^{-2}$.
+6. **Stopping Condition**:
+
+   * Stop training when the average return over the last 100 episodes ≥ 475 (solving CartPole-v1).
+
+---
+
+### **Deliverables**
+
+* **Code**:
+
+  * `policy_gradient.py` — contains the training loop and policy definition.
+  * `utils.py` — helper functions for returns, trajectory sampling, etc.
+* **Report** (`report.pdf`):
+
+  * Describe your network architecture and training procedure.
+  * Include a plot of **Episode Reward vs. Training Iterations**.
+  * Discuss convergence behavior and possible improvements.
+
+---
+
+### **Extra Credit (Optional)**
+
+* Implement **baseline subtraction** using a learned value function.
+* Compare learning curves with and without the baseline.
+
+---
+
+### **Starter Code Skeleton**
+
+```python
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.distributions import Categorical
+
+class PolicyNetwork(nn.Module):
+    def __init__(self, obs_dim, act_dim):
+        super().__init__()
+        self.fc = nn.Sequential(
+            nn.Linear(obs_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, act_dim),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, x):
+        return self.fc(x)
+
+def compute_returns(rewards, gamma=0.99):
+    returns = []
+    G = 0
+    for r in reversed(rewards):
+        G = r + gamma * G
+        returns.insert(0, G)
+    return torch.tensor(returns, dtype=torch.float32)
+
+# Main training loop will go here
+```
+
+---
