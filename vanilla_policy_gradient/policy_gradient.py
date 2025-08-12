@@ -3,48 +3,32 @@ import torch.nn as nn
 import torch.optim
 from torch.distributions.categorical import Categorical
 import gymnasium as gym
+from tqdm import tqdm
 
-env = gym.make("Cartpole-v1", render_mode='rgb-array')
-
-def mlp(sizes, activation=nn.Tanh, output_activation=nn.Softmax):
+def mlp(sizes, activation=nn.Tanh, output_activation=nn.Identity):
     """
     Create an MLP for the policy
     """
     layers = []
-    for i in range(len(sizes)):
-        layer = nn.Parameter(torch.rand(sizes[i], sizes[i+1]))
-        layers.append(layer)
-        layers.append(activation)
-
-    layers.pop()
-    layers.append(output_activation)
-
+    for i in range(len(sizes)-1):
+        act = activation if i < len(sizes) - 2 else output_activation
+        layer = nn.Linear(sizes[i], sizes[i+1])
+        layers += [layer, act()]
     return nn.Sequential(*layers)
 
-def weighted_cumsum(reward:torch.Tensor, gamma:torch.FloatTensor)->torch.FloatTensor:
-    num_step = reward.shape
-    weight = gamma ** torch.arange(0, num_step)
-    value = reward * weight
-    cumsum = torch.zeros(num_step)
-    cur_sum = 0
-    for i in range(len(value)):
-        cumsum[i] = cur_sum + value[i]
-        cur_sum = cumsum[i]
-    return cumsum
-
 def train(env_id="CartPole-v1", hidden_sizes=[32], lr=1e-7,
-          num_epochs=500, batch_size=5000, render=False, max_episode_steps=500):
-    env = gym.make(id=env_id, max_episode_steps=max_episode_steps)
+          num_epochs=50, batch_size=5000, render=False):
+    env = gym.make(id=env_id, render_mode="human")
 
     obs_dim = env.observation_space.shape[0]
     # get number of action
-    n_action = env.action_space
+    n_action = env.action_space.n
 
     policy_net = mlp([obs_dim]+hidden_sizes+[n_action])
                      
     def get_policy(obs):
         logits = policy_net(obs)
-        return Categorical(logits)
+        return Categorical(logits=logits)
     
     def get_action(obs):
         return get_policy(obs).sample().item()
@@ -57,40 +41,65 @@ def train(env_id="CartPole-v1", hidden_sizes=[32], lr=1e-7,
         logp = get_policy(obs).log_prob(act)
         return -(logp * weight).mean()
     
-    
+    optimizer = torch.optim.Adam(params=policy_net.parameters(),
+                                 lr=lr)
     def run_epoch():
         batch_obs = []
         batch_acts = []
-        batch_rets = [] # weight for gradient ascent
-        batch_weights = []
+        batch_weights = [] # weight for gradient ascent, R(\tau)
         batch_ep_len = []
         batch_ep_rew = []
 
-        obs = env.reset()
-
+        obs, info = env.reset()
         terminated, truncated = False, False
         finished_render_eps = False
-
+        ep_rew = []
+        cur_sample_size = 0
         while True:
             if not finished_render_eps and render:
                 env.render()
             # Collect data
+            obs = torch.as_tensor(obs, dtype=torch.float32)
             act = get_action(obs)
+            batch_obs.append(obs)
             obs, rew, terminated, truncated, info = env.step(act)
 
-            batch_obs.append(obs.copy())
-            batch_acts.append(act.copy())
+            ep_rew.append(rew)
+            batch_acts.append(act)
 
-            break
-        optimizer = torch.optim.Adam(params=policy_net.parameters(),
-                                     lr=lr)
-        
-        loss = compute_loss(obs=torch.as_tensor(batch_obs, dtype=torch.float32), 
-                            act=torch.as_tensor(batch_acts, dtype=torch.float32),
-                            weight=torch.as_tensor(batch_weights, dtype=torch.float32))
+            if (terminated or truncated):
+                ep_ret, ep_len = sum(ep_rew), len(ep_rew)
+                batch_ep_len.append(ep_len)
+                batch_ep_rew.append(ep_ret)
+                batch_weights += [ep_ret] * ep_len
+                cur_sample_size += ep_len
+
+                obs, info = env.reset()
+                ep_rew, terminated, truncated = [], False, False
+                finished_render_eps = True
+                if cur_sample_size > batch_size:
+                    break
+
+        batch_obs = torch.stack(batch_obs)
+        batch_acts = torch.as_tensor(batch_acts, dtype=torch.float32)
+        batch_weights = torch.as_tensor(batch_weights, dtype=torch.float32)
+
+        loss = compute_loss(obs=batch_obs, 
+                            act=batch_acts,
+                            weight=batch_weights)
         
         optimizer.zero_grad()
-        loss.
-            
+        loss.backward()
 
+        optimizer.step()
+
+        return loss, batch_ep_rew, batch_ep_len
+    
             
+    for epoch in tqdm(range(num_epochs)):
+        loss, batch_ep_rew, batch_ep_len = run_epoch()
+        print(f"Loss: {loss} | Reward: {sum(batch_ep_rew)} | Sampling Len: {sum(batch_ep_len)}")
+
+if __name__=="__main__":
+    print("Start training")
+    train(render=True)
