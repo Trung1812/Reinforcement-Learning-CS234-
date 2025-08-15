@@ -1,5 +1,5 @@
-import gymnasium as gym
+import numpy as np
 
-env = gym.make("CartPole-v1")
-print(env)
-print(env.action_space.n)
+a = np.array([1,2,3])
+b = np.array([1,2,3])
+print((a==b).all())

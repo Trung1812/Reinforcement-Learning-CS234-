@@ -5,9 +5,10 @@ from riverswim import RiverSwim
 
 np.set_printoptions(precision=3)
 
-def bellman_backup(state, action, R, T, gamma, V):
+def bellman_backup(state, action, R, T, gamma, V:np.array):
     """
-    Perform a single Bellman backup.
+    Perform a single Bellman backup. So the policy for this is deterministic,
+    it just given the action, not the probability distribution of the action
 
     Parameters
     ----------
@@ -22,16 +23,15 @@ def bellman_backup(state, action, R, T, gamma, V):
     -------
     backup_val: float
     """
-    backup_val = 0.
-    ############################
-    # YOUR IMPLEMENTATION HERE #
-    ############################
-
+    backup_val = R[state][action] + gamma * np.matmul(T[state], V)[action]
+    V[state] = backup_val
     return backup_val
 
 def policy_evaluation(policy, R, T, gamma, tol=1e-3):
     """
-    Compute the value function induced by a given policy for the input MDP
+    Compute the value function induced by a given policy for the input MDP.
+    The policy is determined by the state and is deterministic. My assumption
+    is verified.
     Parameters
     ----------
     policy: np.array (num_states)
@@ -45,11 +45,14 @@ def policy_evaluation(policy, R, T, gamma, tol=1e-3):
     value_function: np.array (num_states)
     """
     num_states, num_actions = R.shape
-    value_function = np.zeros(num_states)
-
-    ############################
-    # YOUR IMPLEMENTATION HERE #
-    ############################
+    next_value_function, value_function = np.zeros(num_states)
+    while True:
+        next_value_function = value_function
+        for state in range(num_states):
+            action = policy[state]
+            bellman_backup(state, action, R, T, gamma, value_function)
+        if np.max(np.abs(next_value_function-value_function)) < tol:
+            break
     return value_function
 
 
@@ -68,13 +71,9 @@ def policy_improvement(policy, R, T, V_policy, gamma):
     -------
     new_policy: np.array (num_states)
     """
-    num_states, num_actions = R.shape
-    new_policy = np.zeros(num_states, dtype=int)
-
-    ############################
-    # YOUR IMPLEMENTATION HERE #
-    ############################
-    return new_policy
+    new_policy = np.argmax(R + gamma*np.matmul(T, V_policy))
+    
+    return new_policy, (new_policy == policy).all()
 
 
 def policy_iteration(R, T, gamma, tol=1e-3):
