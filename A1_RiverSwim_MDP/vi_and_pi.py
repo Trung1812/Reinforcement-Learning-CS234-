@@ -45,12 +45,10 @@ def policy_evaluation(policy, R, T, gamma, tol=1e-3):
     value_function: np.array (num_states)
     """
     num_states, num_actions = R.shape
-    next_value_function, value_function = np.zeros(num_states)
+    next_value_function = value_function = np.zeros(num_states)
     while True:
         next_value_function = value_function
-        for state in range(num_states):
-            action = policy[state]
-            bellman_backup(state, action, R, T, gamma, value_function)
+        value_function = (R + gamma * np.matmul(T, value_function))[np.arange(num_states),policy]
         if np.max(np.abs(next_value_function-value_function)) < tol:
             break
     return value_function
@@ -71,7 +69,8 @@ def policy_improvement(policy, R, T, V_policy, gamma):
     -------
     new_policy: np.array (num_states)
     """
-    new_policy = np.argmax(R + gamma*np.matmul(T, V_policy))
+    print(f"Policy Improvement: {policy}")
+    new_policy = np.argmax(R + gamma*np.matmul(T, V_policy), axis=-1)
     
     return new_policy, (new_policy == policy).all()
 
@@ -94,9 +93,12 @@ def policy_iteration(R, T, gamma, tol=1e-3):
     num_states, num_actions = R.shape
     V_policy = np.zeros(num_states)
     policy = np.zeros(num_states, dtype=int)
-    ############################
-    # YOUR IMPLEMENTATION HERE #
-    ############################
+    
+    
+    stop = False
+    while not stop:
+        V_policy = policy_evaluation(policy, R, T, gamma, tol)
+        policy, stop = policy_improvement(policy, R, T, V_policy, gamma)
     return V_policy, policy
 
 
@@ -113,11 +115,17 @@ def value_iteration(R, T, gamma, tol=1e-3):
     policy: np.array (num_states)
     """
     num_states, num_actions = R.shape
-    value_function = np.zeros(num_states)
+    next_value_function = value_function = np.zeros(num_states)
     policy = np.zeros(num_states, dtype=int)
-    ############################
-    # YOUR IMPLEMENTATION HERE #
-    ############################
+    
+    while True:
+        next_value_function = value_function
+        ret = R + gamma * np.matmul(T, value_function)
+        value_function = np.max(ret, axis=-1)
+        if np.max(np.abs(next_value_function-value_function)) < tol:
+            policy = np.argmax(ret, axis=-1)
+            break
+
     return value_function, policy
 
 
@@ -134,18 +142,18 @@ if __name__ == "__main__":
     R, T = env.get_model()
     discount_factor = 0.99
     # discount_factor = 0.67
-
+    
     print("\n" + "-" * 25 + "\nBeginning Policy Iteration\n" + "-" * 25)
 
     V_pi, policy_pi = policy_iteration(R, T, gamma=discount_factor, tol=1e-3)
     print(V_pi)
     print([['L', 'R'][a] for a in policy_pi])
-
+    
     print("\n" + "-" * 25 + "\nBeginning Value Iteration\n" + "-" * 25)
-
+    
     V_vi, policy_vi = value_iteration(R, T, gamma=discount_factor, tol=1e-3)
     print(V_vi)
     print([['L', 'R'][a] for a in policy_vi])
  
-    # V = bellman_backup(1, 1, R, T, discount_factor, V_pi)
-    # print(f'V={V}')
+    V = bellman_backup(1, 1, R, T, discount_factor, V_pi)
+    print(f'V={V}')
