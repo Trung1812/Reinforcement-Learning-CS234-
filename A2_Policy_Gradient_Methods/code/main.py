@@ -4,13 +4,11 @@ import argparse
 import numpy as np
 import torch
 import gym
-import pybullet_envs
+
 from policy_gradient import PolicyGradient
 from ppo import PPO
 from config import get_config
 import random
-
-import pdb
 
 import logging
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)

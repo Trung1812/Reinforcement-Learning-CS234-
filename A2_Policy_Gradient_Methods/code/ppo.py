@@ -1,14 +1,8 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
-import gym
-import itertools
-import copy
-import os
-from general import get_logger, Progbar, export_plot
-from baseline_network import BaselineNetwork
-from network_utils import build_mlp, device, np2torch
-from policy import CategoricalPolicy, GaussianPolicy
+from general import export_plot
+from network_utils import np2torch
 from policy_gradient import PolicyGradient
 
 class PPO(PolicyGradient):
@@ -47,6 +41,13 @@ class PPO(PolicyGradient):
 
         #######################################################
         #########   YOUR CODE HERE - 10-15 lines.   ###########
+        new_logprobs = self.policy.action_distribution(observations).log_prob(actions)
+        importance_ratio = torch.exp(new_logprobs - old_logprobs)
+        clipped_ratio = torch.clip(importance_ratio, 1-self.eps_clip, 1+self.eps_clip)
+        loss = -(torch.min(importance_ratio*advantages, clipped_ratio*advantages)).mean()
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
         #######################################################
         #########          END YOUR CODE.          ############
 

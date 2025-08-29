@@ -23,9 +23,16 @@ class BaselineNetwork(nn.Module):
         self.baseline = None
         self.lr = self.config.learning_rate
         observation_dim = self.env.observation_space.shape[0]
-
         #######################################################
         #########   YOUR CODE HERE - 2-8 lines.   #############
+        hidden_size = config.layer_size
+        n_layers = config.n_layers
+        self.network = build_mlp(input_size=observation_dim,
+                                 output_size=1,
+                                 n_layers=n_layers,
+                                 size=hidden_size)
+        
+        self.optimizer = torch.optim.Adam(self.network.parameters(), lr=self.lr)
         #######################################################
         #########          END YOUR CODE.          ############
 
@@ -49,12 +56,12 @@ class BaselineNetwork(nn.Module):
         """
         #######################################################
         #########   YOUR CODE HERE - 1 lines.     #############
-        
+        output = torch.squeeze(self.network(observations))
         #######################################################
         #########          END YOUR CODE.          ############
-        return
+        return output
 
-    def calculate_advantage(self, returns, observations):
+    def calculate_advantage(self, returns:torch.Tensor, observations: torch.Tensor):
         """
         Args:
             returns: np.array of shape [batch size]
@@ -75,10 +82,11 @@ class BaselineNetwork(nn.Module):
         """
         observations = np2torch(observations)
         #######################################################
-        #########   YOUR CODE HERE - 1-4 lines.   ############
+        #########   YOUR CODE HERE - 1-4 lines.   #############
+        advantages = (returns - self(observations)).numpy()
         #######################################################
         #########          END YOUR CODE.          ############
-        return
+        return advantages
 
     def update_baseline(self, returns, observations):
         """
@@ -97,5 +105,9 @@ class BaselineNetwork(nn.Module):
         observations = np2torch(observations)
         #######################################################
         #########   YOUR CODE HERE - 4-10 lines.  #############
+        loss = torch.sum((self.calculate_advantage(returns, observations)**2)).mean()
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
         #######################################################
         #########          END YOUR CODE.          ############

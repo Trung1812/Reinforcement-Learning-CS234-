@@ -25,6 +25,13 @@ def build_mlp(input_size, output_size, n_layers, size):
     """
     #######################################################
     #########   YOUR CODE HERE - 7-15 lines.   ############
+    layers = [nn.Linear(input_size, size), nn.ReLU()]
+
+    for layer in range(n_layers):
+        layers += [nn.Linear(size, size), nn.ReLU()]
+    layers.append(nn.Linear(size, output_size))
+    
+    return nn.Sequential(*layers)
     #######################################################
     #########          END YOUR CODE.          ############
 
@@ -43,7 +50,3 @@ def np2torch(x, cast_double_to_float=True):
     if cast_double_to_float and x.dtype is torch.float64:
         x = x.float()
     return x
-
-# Test
-# mlp = build_mlp(20, 20, 3, 30)
-# print(mlp)
